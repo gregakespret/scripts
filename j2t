@@ -1,0 +1,43 @@
+#!/usr/bin/env php
+<?php
+//
+// Simplistic JSON to TSV converter
+//
+// No escaping; \t, \r and \n get replaced with '?'
+//
+
+if ($argc == 1) {
+    fwrite(STDERR, "Usage: $argv[0] <field ...>\n");
+    exit(1);
+}
+
+$maxErrors = getenv('MAX_ERRORS') ?: 0;
+
+$lineNum = 1;
+$errors = 0;
+while (($line = fgets(STDIN)) !== false) {
+    $obj = json_decode($line);
+    if ($obj === null) {
+        switch (json_last_error()) {
+            case JSON_ERROR_DEPTH:          $error = 'Maximum stack depth exceeded'; break;
+            case JSON_ERROR_STATE_MISMATCH: $error = 'Underflow or the modes mismatch'; break;
+            case JSON_ERROR_CTRL_CHAR:      $error = 'Unexpected control character found'; break;
+            case JSON_ERROR_SYNTAX:        $error = 'Syntax error, malformed JSON'; break;
+            case JSON_ERROR_UTF8:          $error = 'Malformed UTF-8 characters, possibly incorrectly encoded'; break;
+            default:                        $error = 'Unknown error'; break;
+        }
+        fwrite(STDERR, "Cannot decode JSON (line $lineNum, $error): " . rtrim($line, "\n") . "\n");
+        $errors++;
+        if ($errors > $maxErrors) {
+            fwrite(STDERR, "Maximum number of errors reached ($maxErrors), aborting. Set MAX_ERRORS to increase limit.\n");
+            exit(1);
+        }
+    }
+    for ($i = 1; $i < $argc; $i++) {
+        if ($i > 1)
+            echo "\t";
+        echo str_replace(array("\t", "\r", "\n"), "?", @$obj->$argv[$i]);
+    }
+    echo "\n";
+    $i++;
+}
