@@ -1,0 +1,20 @@
+#!/bin/bash
+set -eu -o pipefail
+CMD="$@"
+
+OLD_HASH=""
+PROCESS_PID=""
+
+# Automatic restart of process when changes to PHP files are saved
+while true; do
+    sleep 1
+    NEW_HASH=`find . -name \*.php -exec openssl sha1 {} \;`;
+
+    if [ "$NEW_HASH" != "$OLD_HASH" ]
+    then
+        kill $PROCESS_PID 2>/dev/null || true
+        bash -c "$CMD" &
+        PROCESS_PID=$!
+        OLD_HASH="$NEW_HASH"
+    fi
+done
